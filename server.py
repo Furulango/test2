@@ -4,10 +4,6 @@ import os
 import uuid
 from flask_cors import CORS
 
-# --- CORRECCIÓN CLAVE PARA RENDER ---
-# Se define explícitamente la carpeta de plantillas (el .html) y
-# la carpeta de archivos estáticos (la carpeta 'uploads') con su ruta URL.
-# Esto asegura que Flask sepa cómo servir los archivos generados.
 app = Flask(
     __name__, 
     template_folder='.', 
@@ -17,11 +13,8 @@ app = Flask(
 CORS(app) 
 
 UPLOAD_FOLDER = 'uploads'
-# Esta línea ya no es estrictamente necesaria porque se define en el constructor,
-# pero la mantenemos por consistencia en el código.
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Asegurarse de que el directorio de subidas exista.
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/')
@@ -44,7 +37,6 @@ def process_image():
         file.save(image_path)
 
         try:
-            # Llamada al script principal de procesamiento
             subprocess.run(['python', 'mainProcessor.py', image_path], check=True, capture_output=True, text=True)
 
             base_name_with_id = os.path.splitext(filename)[0]
@@ -70,11 +62,6 @@ def process_image():
             print(f"Error inesperado: {e}")
             return jsonify({'error': str(e)}), 500
 
-# --- RUTA MANUAL ELIMINADA ---
-# La nueva configuración en el constructor de Flask (`static_url_path`) maneja
-# esto de forma automática y más robusta, por lo que la ruta manual ya no es necesaria.
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=False, host='0.0.0.0', port=port)
-
