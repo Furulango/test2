@@ -266,15 +266,33 @@ document.addEventListener('DOMContentLoaded', () => {
   processBtn.addEventListener('click', () => {
     if (!currentFile) return;
     loadingOverlay.classList.remove('hidden');
-    // Simulación sin backend
-    setTimeout(() => {
-      loadingOverlay.classList.add('hidden');
-      document.getElementById('face-output-image').src = imagePreview.src;
-      document.getElementById('hands-output-image').src = imagePreview.src;
-      placeholderResults.classList.add('hidden');
-      resultsContainer.classList.remove('hidden');
-      switchToTab('face');
-    }, 1500);
+
+    const formData = new FormData();
+    formData.append('image', currentFile);
+    const serverURL = '/process';
+
+    fetch(serverURL, { method: 'POST', body: formData })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => { throw new Error(err.details || err.error || 'Ocurrió un error en el servidor.'); });
+        }
+        return response.json();
+      })
+      .then(data => {
+        loadingOverlay.classList.add('hidden');
+        const origin = window.location.origin;
+        document.getElementById('face-output-image').src = origin + data.face_image_url;
+        document.getElementById('face-pdf-link').href = origin + data.face_pdf_url;
+        document.getElementById('hands-output-image').src = origin + data.hands_image_url;
+        document.getElementById('hands-pdf-link').href = origin + data.hands_pdf_url;
+        placeholderResults.classList.add('hidden');
+        resultsContainer.classList.remove('hidden');
+        switchToTab('face');
+      })
+      .catch(error => {
+        loadingOverlay.classList.add('hidden');
+        console.error('Error:', error);
+      });
   });
 
   const switchToTab = (tab) => {
