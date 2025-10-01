@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador de Imágenes Térmicas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .file-input-area {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        .file-input-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p class="text-lg">Procesando imagen...</p>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Analizador de Imágenes Térmicas</h1>
+            <p class="text-slate-600 mt-2">Sube una imagen térmica para analizar las zonas de interés en rostro y manos.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-5xl mx-auto">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Columna de Carga y Configuración -->
+                <div class="flex flex-col gap-6">
+                    <h2 class="text-xl font-semibold border-b pb-2 text-slate-800">1. Cargar Imagen</h2>
+                    <div id="image-uploader" class="file-input-area rounded-lg p-8 text-center cursor-pointer hover:bg-slate-100">
+                        <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png">
+                        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <p class="mt-2 text-sm text-slate-600">
+                            <span class="font-semibold text-blue-600">Haz clic para subir</span> o arrastra y suelta
+                        </p>
+                        <p class="text-xs text-slate-500 mt-1">PNG, JPG (MAX. 5MB)</p>
+                    </div>
+                    
+                    <div id="image-preview-container" class="hidden">
+                         <h3 class="text-lg font-medium text-slate-700 mb-2">Vista Previa:</h3>
+                        <div class="relative">
+                            <img id="image-preview" src="#" alt="Vista previa de la imagen" class="rounded-lg w-full h-auto max-h-80 object-contain border">
+                             <button id="remove-image-btn" class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="process-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed">
+                        Procesar Imagen
+                    </button>
+                </div>
+
+                <!-- Columna de Resultados -->
+                <div class="flex flex-col gap-6">
+                    <h2 class="text-xl font-semibold border-b pb-2 text-slate-800">2. Resultados del Análisis</h2>
+                    <div id="results-container" class="hidden min-h-[300px] border border-slate-200 rounded-lg p-4 flex flex-col justify-center items-center">
+                        <!-- Tabs -->
+                        <div class="w-full">
+                             <div class="border-b border-gray-200">
+                                <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                                    <button id="tab-face" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-blue-600 border-blue-600">
+                                        Análisis de Rostro
+                                    </button>
+                                    <button id="tab-hands" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 border-transparent">
+                                        Análisis de Manos
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                        <!-- Content -->
+                        <div id="result-content" class="w-full mt-4 flex-grow">
+                             <div id="face-result" class="space-y-4">
+                                <img id="face-output-image" src="https://placehold.co/600x400/e2e8f0/94a3b8?text=Resultado+Rostro" alt="Resultado del análisis de rostro" class="rounded-lg w-full object-contain border">
+                                <a id="face-pdf-link" href="#" target="_blank" class="w-full block text-center bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                                    Descargar Informe PDF (Rostro)
+                                </a>
+                            </div>
+                            <div id="hands-result" class="hidden space-y-4">
+                                <img id="hands-output-image" src="https://placehold.co/600x400/e2e8f0/94a3b8?text=Resultado+Manos" alt="Resultado del análisis de manos" class="rounded-lg w-full object-contain border">
+                                <a id="hands-pdf-link" href="#" target="_blank" class="w-full block text-center bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                                    Descargar Informe PDF (Manos)
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="placeholder-results" class="min-h-[300px] border-2 border-dashed border-slate-300 rounded-lg p-4 flex flex-col justify-center items-center text-center text-slate-500">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                         </svg>
+                        <p class="font-medium">Los resultados del análisis aparecerán aquí.</p>
+                        <p class="text-sm">Por favor, carga una imagen y presiona "Procesar".</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NUEVA SECCIÓN: INSTRUCCIONES PARA RAILWAY -->
+            <div id="railway-instructions" class="mt-12 p-4 bg-slate-100 border-l-4 border-blue-500 rounded-r-lg">
+                <h2 class="text-xl font-semibold mb-3 text-slate-800">Instrucciones para Desplegar en Railway</h2>
+                <div class="space-y-4 text-sm text-slate-700">
+                    <p>Para que tu proyecto funcione en Railway, necesitas incluir algunos archivos de configuración en tu repositorio de GitHub.</p>
+                    <div>
+                        <h3 class="font-semibold text-slate-800">1. Archivo `requirements.txt`</h3>
+                        <p class="mb-2">Este archivo le dice a Railway qué librerías de Python instalar. Crea un archivo con este nombre y el siguiente contenido:</p>
+                        <pre class="bg-slate-200 text-slate-800 p-3 rounded-lg text-xs"><code>Flask
+Flask-Cors
+gunicorn
+opencv-python
+mediapipe
+numpy
+pytesseract
+reportlab
+regex</code></pre>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800">2. Archivo `Procfile`</h3>
+                        <p class="mb-2">Este archivo le dice a Railway cómo ejecutar tu aplicación web. Crea un archivo llamado `Procfile` (sin extensión) con esta línea:</p>
+                        <pre class="bg-slate-200 text-slate-800 p-3 rounded-lg text-xs"><code>web: gunicorn server:app</code></pre>
+                    </div>
+                    <p class="font-medium">Asegúrate de subir todos tus archivos (`.py`, `.caffemodel`, `.txt`, `requirements.txt`, `Procfile`) a tu repositorio de GitHub antes de desplegarlo en Railway.</p>
+                </div>
+            </div>
+
+
+            <!-- Código del Servidor de Ejemplo (ACTUALIZADO PARA RAILWAY) -->
+            <div class="mt-8">
+                <h2 class="text-xl font-semibold mb-2 text-slate-800">Ejemplo de Servidor con Flask (backend)</h2>
+                <p class="text-sm text-slate-600 mb-4">Guarda este código como `server.py`. Ha sido modificado para funcionar tanto localmente como en Railway.</p>
+                <div class="bg-slate-800 rounded-lg overflow-hidden">
+                    <div class="p-4 text-sm text-slate-300 font-mono whitespace-pre-wrap" style="max-height: 400px; overflow-y: auto;">
+                        <code>
+# Importaciones necesarias
+from flask import Flask, request, jsonify, send_from_directory, render_template
+import subprocess
+import os
+import uuid
+from flask_cors import CORS
+
+# Configuración de Flask
+app = Flask(__name__, static_folder='uploads')
+CORS(app) 
+
+# Directorio para guardar archivos temporalmente
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route('/')
+def index():
+    # Esta ruta servirá tu archivo HTML principal
+    return render_template('analizador_termico.html')
+
+@app.route('/process', methods=['POST'])
+def process_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No se encontró el archivo de imagen'}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
+
+    if file:
+        unique_id = str(uuid.uuid4())
+        filename = unique_id + '_' + os.path.basename(file.filename)
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(image_path)
+
+        try:
+            # NOTA: Asegúrate de haber modificado tu mainProcessor.py para que
+            # la ruta de la imagen la tome de un argumento de línea de comandos.
+            print(f"Ejecutando proceso para: {image_path}")
+            subprocess.run(['python', 'mainProcessor.py', image_path], check=True, capture_output=True, text=True)
+
+            base_name_with_id = os.path.splitext(filename)[0]
+            
+            face_img_out = f"{base_name_with_id}_rostro_etiquetado.png"
+            face_pdf_out = f"{base_name_with_id}_Informe_Rostro.pdf"
+            hands_img_out = f"{base_name_with_id}_manos_etiquetada.png"
+            hands_pdf_out = f"{base_name_with_id}_Informe_Manos.pdf"
+            
+            return jsonify({
+                'face_image_url': f'/uploads/{face_img_out}',
+                'face_pdf_url': f'/uploads/{face_pdf_out}',
+                'hands_image_url': f'/uploads/{hands_img_out}',
+                'hands_pdf_url': f'/uploads/{hands_pdf_out}'
+            })
+
+        except subprocess.CalledProcessError as e:
+            print("Error durante la ejecución del script:")
+            print("STDERR:", e.stderr)
+            return jsonify({'error': 'Error al procesar la imagen', 'details': e.stderr}), 500
+        except Exception as e:
+            print(f"Error inesperado: {e}")
+            return jsonify({'error': str(e)}), 500
+
+# Ruta para servir los archivos generados
+@app.route('/uploads/&lt;filename&gt;')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+if __name__ == '__main__':
+    # Configuración para despliegue en Railway (o localmente)
+    # Railway proporciona la variable de entorno PORT.
+    port = int(os.environ.get('PORT', 5000))
+    # Escuchar en 0.0.0.0 hace que sea accesible externamente.
+    app.run(debug=False, host='0.0.0.0', port=port)
+                        </code>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const imageUploader = document.getElementById('image-uploader');
+        const fileInput = document.getElementById('file-input');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        const processBtn = document.getElementById('process-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        const resultsContainer = document.getElementById('results-container');
+        const placeholderResults = document.getElementById('placeholder-results');
+
+        const tabFace = document.getElementById('tab-face');
+        const tabHands = document.getElementById('tab-hands');
+        const faceResult = document.getElementById('face-result');
+        const handsResult = document.getElementById('hands-result');
+
+        let currentFile = null;
+
+        const updateProcessButton = () => {
+            processBtn.disabled = !currentFile;
+        };
+        
+        const resetUI = () => {
+            fileInput.value = '';
+            currentFile = null;
+            imagePreviewContainer.classList.add('hidden');
+            imageUploader.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+            placeholderResults.classList.remove('hidden');
+            updateProcessButton();
+        };
+
+        imageUploader.addEventListener('click', () => fileInput.click());
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            imageUploader.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            imageUploader.addEventListener(eventName, () => imageUploader.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            imageUploader.addEventListener(eventName, () => imageUploader.classList.remove('dragover'), false);
+        });
+
+        imageUploader.addEventListener('drop', e => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', e => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        const handleFile = (file) => {
+            if (file && file.type.startsWith('image/')) {
+                currentFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imageUploader.classList.add('hidden');
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+                updateProcessButton();
+            } else {
+                alert('Por favor, selecciona un archivo de imagen válido (JPG, PNG).');
+            }
+        };
+
+        removeImageBtn.addEventListener('click', resetUI);
+
+        processBtn.addEventListener('click', () => {
+            if (!currentFile) {
+                alert('Por favor, carga una imagen primero.');
+                return;
+            }
+
+            loadingOverlay.classList.remove('hidden');
+            
+            const formData = new FormData();
+            formData.append('image', currentFile);
+
+            // En producción (Railway), el frontend y backend están en el mismo origen.
+            // Por lo tanto, usamos una ruta relativa.
+            const serverURL = '/process';
+
+            fetch(serverURL, {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.details || err.error || 'Ocurrió un error en el servidor.');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                loadingOverlay.classList.add('hidden');
+                
+                // Construir URLs completas en caso de que sea necesario
+                const origin = window.location.origin;
+                document.getElementById('face-output-image').src = origin + data.face_image_url;
+                document.getElementById('face-pdf-link').href = origin + data.face_pdf_url;
+                document.getElementById('hands-output-image').src = origin + data.hands_image_url;
+                document.getElementById('hands-pdf-link').href = origin + data.hands_pdf_url;
+                
+                placeholderResults.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+                switchToTab('face');
+            })
+            .catch(error => {
+                loadingOverlay.classList.add('hidden');
+                console.error('Error:', error);
+                alert(`Error al procesar la imagen: ${error.message}`);
+            });
+        });
+
+        const switchToTab = (tab) => {
+             if (tab === 'face') {
+                tabFace.classList.add('text-blue-600', 'border-blue-600');
+                tabFace.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+                
+                tabHands.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+                tabHands.classList.remove('text-blue-600', 'border-blue-600');
+                
+                faceResult.classList.remove('hidden');
+                handsResult.classList.add('hidden');
+             } else {
+                tabHands.classList.add('text-blue-600', 'border-blue-600');
+                tabHands.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+                
+                tabFace.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'border-transparent');
+                tabFace.classList.remove('text-blue-600', 'border-blue-600');
+
+                handsResult.classList.remove('hidden');
+                faceResult.classList.add('hidden');
+             }
+        };
+
+        tabFace.addEventListener('click', () => switchToTab('face'));
+        tabHands.addEventListener('click', () => switchToTab('hands'));
+
+        updateProcessButton();
+    });
+</script>
+
+</body>
+</html>
+

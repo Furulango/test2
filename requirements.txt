@@ -1,0 +1,9 @@
+Flask
+Flask-Cors
+gunicorn
+opencv-python
+mediapipe
+numpy
+pytesseract
+reportlab
+regex
