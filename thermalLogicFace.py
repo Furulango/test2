@@ -22,8 +22,9 @@ DEFAULT_T_MAX = 37.0
 DEFAULT_T_MIN = 25.0
 
 # MODELOS DNN (DEBEN ESTAR EN EL MISMO DIRECTORIO DEL ARCHIVO main_processor.py)
-PROTOTXT_PATH = 'deploy.prototxt.txt' 
-CAFFEMODEL_PATH = 'res10_300x300_ssd_iter_140000.caffemodel'
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROTOTXT_PATH = os.path.join(SCRIPT_DIR, 'deploy.prototxt.txt')
+CAFFEMODEL_PATH = os.path.join(SCRIPT_DIR, 'res10_300x300_ssd_iter_140000.caffemodel')
 
 # Inicializar MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh

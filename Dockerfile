@@ -2,7 +2,6 @@
 FROM python:3.9-slim
 
 # 2. Instalar Dependencias del Sistema (Tesseract y Librerías de OpenCV)
-# Combinamos ambas necesidades para asegurar compatibilidad total
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libgl1 \
@@ -11,16 +10,19 @@ RUN apt-get update && apt-get install -y \
 # 3. Directorio de Trabajo
 WORKDIR /app
 
-# 4. Copiar e Instalar Dependencias de Python
+# 4. Copiar Archivo de Dependencias
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copiar el Código de la Aplicación
+# 5. Instalar Dependencias de Python 
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
+
+# 6. Copiar el Código de la Aplicación
 COPY . .
 
-# 6. Exponer Puerto para Render
+# 7. Exponer Puerto para Render
 EXPOSE 10000
 
-# 7. Comando de Inicio para Flask con Gunicorn
-# Apuntamos a server.py (el archivo) y app (la variable Flask)
+# 8. Comando de Inicio para Flask con Gunicorn
 CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:10000", "server:app"]
+
