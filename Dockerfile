@@ -24,5 +24,3 @@ EXPOSE 10000
 # 7. Comando de Inicio para Flask con Gunicorn
 # Apuntamos a server.py (el archivo) y app (la variable Flask)
 CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:10000", "server:app"]
-
-s
