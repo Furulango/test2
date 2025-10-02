@@ -181,9 +181,7 @@ def generar_pdf_informe(pdf_filename, image_original_path, image_etiquetada_path
     except Exception as e:
         print(f"\n❌ Error al generar el PDF: {e}")
 
-    # Limpieza de archivos temporales
-    if os.path.exists(image_etiquetada_path): os.remove(image_etiquetada_path)
-    print("🧹 Archivo temporal eliminado.")
+
 
 
 # =========================================================================
